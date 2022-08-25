@@ -739,13 +739,21 @@ def find_only_one_key(lmp_lines, key):
     return found[0]
 
 
-def revise_lmp_input_model(lmp_lines, task_model_list, trj_freq, deepmd_version = '1'):
+def revise_lmp_input_model(jdata,lmp_lines, task_model_list, trj_freq, deepmd_version = '1'):
     idx = find_only_one_key(lmp_lines, ['pair_style', 'deepmd'])
     graph_list = ' '.join(task_model_list)
     if LooseVersion(deepmd_version) < LooseVersion('1'):
         lmp_lines[idx] = "pair_style      deepmd %s %d model_devi.out\n" % (graph_list, trj_freq)
     else:
-        lmp_lines[idx] = "pair_style      deepmd %s out_freq %d out_file model_devi.out\n" % (graph_list, trj_freq)
+        keywords = ""
+        if jdata.get('use_clusters', False):
+            keywords += "atomic "
+        if jdata.get('use_relative', False):
+            keywords += "relative %s " % jdata['epsilon']
+        if jdata.get('use_relative_v', False):
+            keywords += "relative_v %s " % jdata['epsilon_v']
+        
+        lmp_lines[idx] = "pair_style      deepmd %s out_freq %d out_file model_devi.out %s \n" % (graph_list, trj_freq,keywords)
     return lmp_lines
 
 
@@ -1052,13 +1060,13 @@ def _make_model_devi_revmat(iter_index, jdata, mdata, conf_systems):
                 if template_has_pair_deepmd == 0:
                     if LooseVersion(deepmd_version) < LooseVersion('1'):
                         if len(lmp_lines[template_pair_deepmd_idx].split()) !=  (len(models) + len(["pair_style","deepmd","10", "model_devi.out"])):
-                            lmp_lines = revise_lmp_input_model(lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
+                            lmp_lines = revise_lmp_input_model(jdata,lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
                     else:
                         if len(lmp_lines[template_pair_deepmd_idx].split()) != (len(models) + len(["pair_style","deepmd","out_freq", "10", "out_file", "model_devi.out"])):
-                            lmp_lines = revise_lmp_input_model(lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
+                            lmp_lines = revise_lmp_input_model(jdata,lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
                 #use revise_lmp_input_model to raise error message if "part_style" or "deepmd" not found
                 else:
-                    lmp_lines = revise_lmp_input_model(lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
+                    lmp_lines = revise_lmp_input_model(jdata,lmp_lines, task_model_list, trj_freq, deepmd_version = deepmd_version)
                 
                 lmp_lines = revise_lmp_input_dump(lmp_lines, trj_freq)
                 lmp_lines = revise_by_keys(
